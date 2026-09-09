@@ -1,0 +1,26 @@
+{
+  "name": "yournote",
+  "version": "1.0.0",
+  "private": true,
+  "description": "YourNote - share study notes, react and discuss. Next.js + Go + Neon Postgres.",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @yournote/web",
+    "dev:api": "cd apps/api && go run ./cmd/server",
+    "build": "npm run build --workspace @yournote/web",
+    "build:api": "cd apps/api && go build -o bin/server ./cmd/server",
+    "start": "npm run start --workspace @yournote/web",
+    "lint": "npm run lint --workspace @yournote/web",
+    "typecheck": "npm run typecheck --workspace @yournote/web",
+    "test:api": "cd apps/api && go test ./...",
+    "db:generate": "npm run db:generate --workspace @yournote/web",
+    "db:push": "npm run db:push --workspace @yournote/web",
+    "db:migrate": "npm run db:migrate --workspace @yournote/web",
+    "db:studio": "npm run db:studio --workspace @yournote/web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,487 @@
+@import "tailwindcss";
+
+/* next-themes toggles a class on <html>, so the dark variant follows it. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------------------
+   Design tokens. Light is the default; .dark redefines the same names, so every
+   component can style once and stay correct in both themes.
+--------------------------------------------------------------------------- */
+:root {
+  --background: 251 250 255;
+  --surface: 255 255 255;
+  --surface-raised: 255 255 255;
+  --foreground: 20 18 31;
+  --muted: 241 238 250;
+  --muted-foreground: 107 102 133;
+  --border: 231 227 243;
+  --border-strong: 214 208 235;
+
+  --primary: 124 58 237;
+  --primary-foreground: 255 255 255;
+  --accent: 192 38 211;
+  --highlight: 8 145 178;
+
+  --success: 15 145 96;
+  --warning: 202 118 14;
+  --danger: 220 55 75;
+
+  --ring: 139 92 246;
+  --shadow-color: 88 60 160;
+
+  /* Chart series. Validated for the light surface with the dataviz six checks:
+     lightness band, chroma floor, CVD separation, normal-vision floor, contrast. */
+  --chart-1: 124 58 237;
+  --chart-2: 8 145 178;
+
+  --radius: 0.875rem;
+}
+
+.dark {
+  --background: 8 7 16;
+  --surface: 17 15 29;
+  --surface-raised: 24 21 39;
+  --foreground: 244 242 255;
+  --muted: 30 26 48;
+  --muted-foreground: 160 154 192;
+  --border: 38 34 56;
+  --border-strong: 54 48 78;
+
+  --primary: 167 139 250;
+  --primary-foreground: 24 16 44;
+  --accent: 232 121 249;
+  --highlight: 34 211 238;
+
+  --success: 52 199 143;
+  --warning: 251 191 36;
+  --danger: 251 113 133;
+
+  --ring: 167 139 250;
+  --shadow-color: 0 0 0;
+
+  /* Dark is a selected palette, not an automatic flip: these are re-stepped
+     against the dark surface so they clear the same six checks. */
+  --chart-1: 139 92 246;
+  --chart-2: 14 165 183;
+}
+
+@theme inline {
+  --color-background: rgb(var(--background));
+  --color-surface: rgb(var(--surface));
+  --color-surface-raised: rgb(var(--surface-raised));
+  --color-foreground: rgb(var(--foreground));
+  --color-muted: rgb(var(--muted));
+  --color-muted-foreground: rgb(var(--muted-foreground));
+  --color-border: rgb(var(--border));
+  --color-border-strong: rgb(var(--border-strong));
+  --color-primary: rgb(var(--primary));
+  --color-primary-foreground: rgb(var(--primary-foreground));
+  --color-accent: rgb(var(--accent));
+  --color-highlight: rgb(var(--highlight));
+  --color-success: rgb(var(--success));
+  --color-warning: rgb(var(--warning));
+  --color-danger: rgb(var(--danger));
+  --color-ring: rgb(var(--ring));
+  --color-chart-1: rgb(var(--chart-1));
+  --color-chart-2: rgb(var(--chart-2));
+
+  --radius-xs: calc(var(--radius) - 6px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 14px);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SFMono-Regular", monospace;
+
+  --animate-fade-up: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-in: fade-in 0.35s ease-out both;
+  --animate-scale-in: scale-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-shimmer: shimmer 2.2s linear infinite;
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-pop: pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-18px) scale(1.03);
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.28);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+--------------------------------------------------------------------------- */
+* {
+  border-color: rgb(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: rgb(var(--background));
+  color: rgb(var(--foreground));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100dvh;
+}
+
+::selection {
+  background: rgb(var(--primary) / 0.28);
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--ring));
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border-strong));
+  border: 3px solid rgb(var(--background));
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--muted-foreground) / 0.6);
+}
+
+/* Respect a reduced-motion preference across every decorative animation. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Reusable surfaces and effects
+--------------------------------------------------------------------------- */
+@utility surface-card {
+  background-color: rgb(var(--surface));
+  border: 1px solid rgb(var(--border));
+  border-radius: var(--radius-xl);
+}
+
+@utility glass {
+  background-color: rgb(var(--surface) / 0.72);
+  backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgb(var(--border) / 0.9);
+}
+
+@utility gradient-text {
+  background-image: linear-gradient(
+    120deg,
+    rgb(var(--primary)),
+    rgb(var(--accent)) 45%,
+    rgb(var(--highlight))
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@utility gradient-border {
+  position: relative;
+  background-clip: padding-box;
+  border: 1px solid transparent;
+}
+
+@utility hover-lift {
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.28s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px -22px rgb(var(--shadow-color) / 0.55);
+  border-color: rgb(var(--border-strong));
+}
+
+/* Ambient background used behind the hero and the auth screens. */
+.aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.aurora::before,
+.aurora::after {
+  content: "";
+  position: absolute;
+  width: 46rem;
+  height: 46rem;
+  border-radius: 9999px;
+  filter: blur(120px);
+  opacity: 0.4;
+}
+
+.dark .aurora::before,
+.dark .aurora::after {
+  opacity: 0.28;
+}
+
+.aurora::before {
+  top: -22rem;
+  left: -14rem;
+  background: radial-gradient(circle, rgb(var(--primary) / 0.9), transparent 65%);
+  animation: float 9s ease-in-out infinite;
+}
+
+.aurora::after {
+  top: -16rem;
+  right: -18rem;
+  background: radial-gradient(circle, rgb(var(--accent) / 0.75), transparent 65%);
+  animation: float 11s ease-in-out infinite reverse;
+}
+
+/* Faint grid, so large empty areas still have texture. */
+.grid-backdrop {
+  background-image:
+    linear-gradient(rgb(var(--border) / 0.55) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--border) / 0.55) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--muted)) 25%,
+    rgb(var(--border-strong)) 37%,
+    rgb(var(--muted)) 63%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* Staggered entrance for grids of cards. */
+.stagger > * {
+  animation: var(--animate-fade-up);
+}
+
+.stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.stagger > *:nth-child(4) { animation-delay: 0.14s; }
+.stagger > *:nth-child(5) { animation-delay: 0.18s; }
+.stagger > *:nth-child(6) { animation-delay: 0.22s; }
+.stagger > *:nth-child(7) { animation-delay: 0.26s; }
+.stagger > *:nth-child(8) { animation-delay: 0.3s; }
+.stagger > *:nth-child(9) { animation-delay: 0.34s; }
+
+/* Clamp helpers for card copy. */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+   Markdown rendering for note bodies
+--------------------------------------------------------------------------- */
+.prose-note {
+  color: rgb(var(--foreground));
+  font-size: 1.0625rem;
+  line-height: 1.75;
+}
+
+.prose-note > * + * {
+  margin-top: 1.15em;
+}
+
+.prose-note h1,
+.prose-note h2,
+.prose-note h3,
+.prose-note h4 {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  margin-top: 1.9em;
+  margin-bottom: 0.6em;
+}
+
+.prose-note h1 { font-size: 1.85rem; }
+.prose-note h2 { font-size: 1.5rem; }
+.prose-note h3 { font-size: 1.235rem; }
+
+.prose-note a {
+  color: rgb(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
+}
+
+.prose-note a:hover {
+  color: rgb(var(--accent));
+}
+
+.prose-note strong {
+  color: rgb(var(--foreground));
+  font-weight: 640;
+}
+
+.prose-note ul,
+.prose-note ol {
+  padding-left: 1.4em;
+}
+
+.prose-note ul { list-style: disc; }
+.prose-note ol { list-style: decimal; }
+
+.prose-note li + li {
+  margin-top: 0.4em;
+}
+
+.prose-note li::marker {
+  color: rgb(var(--primary));
+}
+
+.prose-note blockquote {
+  border-left: 3px solid rgb(var(--primary));
+  padding: 0.2em 0 0.2em 1.1em;
+  color: rgb(var(--muted-foreground));
+  font-style: italic;
+}
+
+.prose-note code {
+  background: rgb(var(--muted));
+  border: 1px solid rgb(var(--border));
+  border-radius: var(--radius-xs);
+  padding: 0.15em 0.42em;
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+.prose-note pre {
+  background: rgb(var(--surface-raised));
+  border: 1px solid rgb(var(--border));
+  border-radius: var(--radius-lg);
+  padding: 1.05rem 1.15rem;
+  overflow-x: auto;
+}
+
+.prose-note pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+.prose-note img {
+  border-radius: var(--radius-lg);
+  border: 1px solid rgb(var(--border));
+  max-width: 100%;
+  height: auto;
+}
+
+.prose-note hr {
+  border: none;
+  border-top: 1px solid rgb(var(--border));
+  margin: 2.2em 0;
+}
+
+.prose-note table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  display: block;
+  overflow-x: auto;
+}
+
+.prose-note th,
+.prose-note td {
+  border: 1px solid rgb(var(--border));
+  padding: 0.55em 0.8em;
+  text-align: left;
+}
+
+.prose-note th {
+  background: rgb(var(--muted));
+  font-weight: 600;
+}

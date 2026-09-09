@@ -1,0 +1,262 @@
+// YourNote - single source of truth for the database.
+// Prisma owns the schema and migrations only; the Go API reads and writes these
+// same tables with SQL. Every column is explicitly mapped to snake_case so the
+// raw SQL in the Go service stays readable.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Better Auth core models (user / session / account / verification)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false) @map("email_verified")
+  image         String?
+  bio           String?
+  role          String?   @default("user")
+  banned        Boolean?  @default(false)
+  banReason     String?   @map("ban_reason")
+  banExpires    DateTime? @map("ban_expires")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  sessions  Session[]
+  accounts  Account[]
+  notes     Note[]
+  comments  Comment[]
+  reactions Reaction[]
+  bookmarks Bookmark[]
+  views     NoteView[]
+  reports   Report[]      @relation("ReportReporter")
+  actions   AdminAction[]
+
+  @@index([role])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model Session {
+  id             String   @id
+  token          String   @unique
+  expiresAt      DateTime @map("expires_at")
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  impersonatedBy String?  @map("impersonated_by")
+  userId         String   @map("user_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// ---------------------------------------------------------------------------
+// Product models - owned and mutated exclusively by the Go API
+// ---------------------------------------------------------------------------
+
+/// visibility: public | unlisted | private
+/// status:     published | draft | removed
+model Note {
+  id         String   @id
+  title      String
+  slug       String   @unique
+  summary    String?
+  content    String
+  subject    String?
+  tags       String[] @default([])
+  coverImage String?  @map("cover_image")
+  visibility String   @default("public")
+  status     String   @default("published")
+  viewCount  Int      @default(0) @map("view_count")
+  authorId   String   @map("author_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+  comments    Comment[]
+  reactions   Reaction[]
+  bookmarks   Bookmark[]
+  views       NoteView[]
+
+  @@index([authorId])
+  @@index([status, visibility, createdAt])
+  @@index([createdAt])
+  @@map("notes")
+}
+
+/// resourceType mirrors Cloudinary: image | video | raw
+model Attachment {
+  id           String   @id
+  noteId       String   @map("note_id")
+  url          String
+  secureUrl    String   @map("secure_url")
+  publicId     String   @map("public_id")
+  resourceType String   @default("image") @map("resource_type")
+  format       String?
+  originalName String?  @map("original_name")
+  bytes        Int      @default(0)
+  width        Int?
+  height       Int?
+  pages        Int?
+  position     Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+  @@map("attachments")
+}
+
+model Comment {
+  id            String    @id
+  noteId        String    @map("note_id")
+  authorId      String    @map("author_id")
+  parentId      String?   @map("parent_id")
+  content       String
+  isDeleted     Boolean   @default(false) @map("is_deleted")
+  deletedById   String?   @map("deleted_by_id")
+  deletedReason String?   @map("deleted_reason")
+  deletedAt     DateTime? @map("deleted_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  note    Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  author  User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([noteId, createdAt])
+  @@index([authorId])
+  @@index([parentId])
+  @@map("comments")
+}
+
+/// type: like | love | fire | insightful | clap | wow
+model Reaction {
+  id        String   @id
+  noteId    String   @map("note_id")
+  userId    String   @map("user_id")
+  type      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, userId, type])
+  @@index([noteId])
+  @@map("reactions")
+}
+
+model Bookmark {
+  id        String   @id
+  noteId    String   @map("note_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, userId])
+  @@index([userId, createdAt])
+  @@map("bookmarks")
+}
+
+/// One row per unique viewer: the user id, or a hash of ip + user agent.
+model NoteView {
+  id        String   @id
+  noteId    String   @map("note_id")
+  userId    String?  @map("user_id")
+  viewerKey String   @map("viewer_key")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  note Note  @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([noteId, viewerKey])
+  @@index([noteId])
+  @@map("note_views")
+}
+
+/// targetType: note | comment      status: open | resolved | dismissed
+model Report {
+  id         String    @id
+  targetType String    @map("target_type")
+  targetId   String    @map("target_id")
+  reporterId String    @map("reporter_id")
+  reason     String
+  details    String?
+  status     String    @default("open")
+  resolvedAt DateTime? @map("resolved_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  reporter User @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@map("reports")
+}
+
+/// Audit trail for every moderation action taken from the admin panel.
+model AdminAction {
+  id         String   @id
+  adminId    String   @map("admin_id")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  reason     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@map("admin_actions")
+}
