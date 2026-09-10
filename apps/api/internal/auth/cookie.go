@@ -18,9 +18,14 @@ const (
 
 // ExtractToken pulls the raw session token out of a request.
 //
-// Better Auth stores the cookie as "<token>.<hmac signature>"; only the token
-// half is persisted in the sessions table. A Bearer token is also accepted so
-// non-browser clients (and the Next.js server) can call the API directly.
+// Better Auth stores the cookie as "<token>.<signature>", percent-encoded, and
+// only the token half is persisted in the sessions table. Verified against a
+// live Better Auth 1.7 sign-in:
+//
+//	cookie: JlJrU2FAI0QgK8S2f930qbIYJeDudFLJ.e886...f4Q%3D
+//	token:  JlJrU2FAI0QgK8S2f930qbIYJeDudFLJ
+//
+// A Bearer token is also accepted so non-browser clients can call the API.
 func ExtractToken(r *http.Request) (token, signature string) {
 	raw := ""
 	if c, err := r.Cookie(secureCookieName); err == nil {
@@ -35,10 +40,13 @@ func ExtractToken(r *http.Request) (token, signature string) {
 	if raw == "" {
 		return "", ""
 	}
-	// Cookie values arrive percent-encoded; decoding is best effort.
-	if decoded, err := url.QueryUnescape(raw); err == nil {
+
+	// PathUnescape rather than QueryUnescape: the signature is base64, and
+	// QueryUnescape would turn any literal '+' in it into a space.
+	if decoded, err := url.PathUnescape(raw); err == nil {
 		raw = decoded
 	}
+
 	if token, signature, found := strings.Cut(raw, "."); found {
 		return token, signature
 	}
@@ -46,15 +54,28 @@ func ExtractToken(r *http.Request) (token, signature string) {
 }
 
 // VerifySignature checks the HMAC-SHA256 signature Better Auth appends to the
-// cookie value. The token itself is 32 bytes of CSPRNG output looked up in the
-// database, so this is defence in depth rather than the primary control; it is
-// enabled with AUTH_STRICT_COOKIE_SIGNATURE=true.
+// cookie value.
+//
+// Better Auth 1.7 encodes that HMAC as standard base64 with padding. Earlier
+// releases used unpadded base64url, so both encodings are accepted: each is
+// compared in constant time, and accepting a second encoding of the same HMAC
+// weakens nothing.
+//
+// This is defence in depth rather than the primary control - the token itself
+// is CSPRNG output looked up in the database - and is enabled with
+// AUTH_STRICT_COOKIE_SIGNATURE=true.
 func VerifySignature(secret, token, signature string) bool {
-	if signature == "" {
+	if signature == "" || secret == "" {
 		return false
 	}
+
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(token))
-	expected := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	return hmac.Equal([]byte(expected), []byte(signature))
+	sum := mac.Sum(nil)
+
+	standard := base64.StdEncoding.EncodeToString(sum)
+	urlSafe := base64.RawURLEncoding.EncodeToString(sum)
+
+	return hmac.Equal([]byte(standard), []byte(signature)) ||
+		hmac.Equal([]byte(urlSafe), []byte(signature))
 }

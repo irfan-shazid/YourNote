@@ -83,3 +83,61 @@ func TestIdentityBanExpiry(t *testing.T) {
 		t.Error("a permanent ban should block the user")
 	}
 }
+
+// The following vectors were captured from a live Better Auth 1.7 sign-in and
+// reproduced with node's crypto, so they pin this implementation to the one
+// that actually issues the cookies rather than to an assumption about it.
+const (
+	vectorSecret = "test-secret-value-for-signature-vector"
+	vectorToken  = "JlJrU2FAI0QgK8S2f930qbIYJeDudFLJ"
+	// Standard base64 with padding, which is what Better Auth 1.7 emits.
+	vectorSignature = "wcZN5a/LKaNudJNZFKjye60dysVm4o7xqhCdnyjrbLw="
+	// Unpadded base64url, emitted by earlier releases.
+	vectorSignatureLegacy = "wcZN5a_LKaNudJNZFKjye60dysVm4o7xqhCdnyjrbLw"
+)
+
+func TestVerifySignatureAcceptsBetterAuthCookie(t *testing.T) {
+	if !VerifySignature(vectorSecret, vectorToken, vectorSignature) {
+		t.Error("a genuine Better Auth 1.7 signature was rejected")
+	}
+	if !VerifySignature(vectorSecret, vectorToken, vectorSignatureLegacy) {
+		t.Error("the legacy base64url signature was rejected")
+	}
+}
+
+func TestVerifySignatureRejectsForgeries(t *testing.T) {
+	cases := map[string][3]string{
+		"wrong secret":    {"another-secret", vectorToken, vectorSignature},
+		"wrong token":     {vectorSecret, "someoneelsestoken", vectorSignature},
+		"tampered sig":    {vectorSecret, vectorToken, "xcZN5a/LKaNudJNZFKjye60dysVm4o7xqhCdnyjrbLw="},
+		"empty signature": {vectorSecret, vectorToken, ""},
+		"empty secret":    {"", vectorToken, vectorSignature},
+	}
+
+	for name, args := range cases {
+		t.Run(name, func(t *testing.T) {
+			if VerifySignature(args[0], args[1], args[2]) {
+				t.Error("an invalid signature was accepted")
+			}
+		})
+	}
+}
+
+// The percent-encoded cookie a browser actually sends must yield the exact
+// token stored in the sessions table, and a signature that still verifies.
+func TestExtractTokenHandlesEncodedRealCookie(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  "better-auth.session_token",
+		Value: vectorToken + ".wcZN5a%2FLKaNudJNZFKjye60dysVm4o7xqhCdnyjrbLw%3D",
+	})
+
+	token, signature := ExtractToken(req)
+
+	if token != vectorToken {
+		t.Fatalf("token = %q, want the value stored in the sessions table", token)
+	}
+	if !VerifySignature(vectorSecret, token, signature) {
+		t.Errorf("signature %q from the encoded cookie did not verify", signature)
+	}
+}
